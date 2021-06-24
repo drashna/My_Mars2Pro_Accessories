@@ -63,6 +63,8 @@ max_framebuffers=2
 
 [all]
 #dtoverlay=vc4-fkms-v3d
-dtparam=act_led_trigger=actpwr
-dtoverlay=dwc2,dr_mode=peripheral
 enable_uart=1
+start_x=1
+gpu_mem=256
+dtoverlay=w1-gpio,dwc2,dr_mode=peripheral
+dtparam=i2c_baudrate=1000000
