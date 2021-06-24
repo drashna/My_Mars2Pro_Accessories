@@ -96,23 +96,23 @@ class RepeatedTimer(object):
     self._timer.cancel()
     self.is_running = False
 
-def update_dht()
+def update_dht():
     humidity, temperature = Adafruit_DHT.read(Adafruit_DHT.DHT22, 18)
     if humidity is not None and temperature is not None:
         str_temp = '{0:0.2f}*C'.format(temperature)
         str_hum = '{0:0.2f}%'.format(humidity)
 
-dht_updater = RepeatingTimer(2, update_dht)
+rt = RepeatedTimer(2, update_dht)
 
 def cleanup(*args):
     print("\nOLED Termintated. Cleaning up\n")
     disp.fill(0)
     disp.show()
-    dht_updater.stop()
+    rt.stop()
     sys.exit(0)
 
 for sig in (SIGABRT, SIGINT, SIGTERM):
-    dht_updater.stop()
+    rt.stop()
     signal(sig, cleanup)
 
 
@@ -136,10 +136,10 @@ while True:
         cmd = 'df -h | awk \'$NF=="/mnt/usb_share"{printf "Disk: %s/%s %s", $3,$2,$5}\''
         Disk = subprocess.check_output(cmd, shell=True).decode("utf-8")
 
-        time_f = time.strftime("%H:%M")
+        time_f = time.strftime("%H:%M:%S")
         date = time.strftime("%e %b %Y")
 
-        draw.text((x+83, top + 0), time_f, font=font, fill=255)
+        draw.text((x+80, top + 0), time_f, font=font, fill=255)
         draw.text((x, top +  0), date, font=font, fill=255)
         draw.text((x, top +  8), "IP: " + IP, font=font, fill=255)
         draw.text((x, top + 16), temp, font=font, fill=255)
@@ -160,4 +160,4 @@ while True:
         disp.show()
         raise error
     finally:
-        dht_updater.stop()
+        rt.stop()
