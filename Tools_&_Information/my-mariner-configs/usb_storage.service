@@ -1,0 +1,12 @@
+[Unit]
+Description=USB Mass Storage Service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=modprobe g_mass_storage file=/piusb.bin stall=0 ro=1
+ExecStop=modprobe -r g_mass_storage && sync -f /mnt/usb_share
+
+[Install]
+WantedBy=multi-user.target
+

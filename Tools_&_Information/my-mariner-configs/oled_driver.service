@@ -1,0 +1,11 @@
+[Unit]
+Description=OLED Display Driver Service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/share/oled.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
