@@ -9,6 +9,7 @@
 # not support PIL/pillow (python imaging library)!
 
 import time
+import threading
 import sys
 import os
 import subprocess
@@ -68,10 +69,46 @@ font = ImageFont.load_default()
 str_temp = '----*C'
 str_hum = '----%'
 
+class RepeatedTimer(object):
+  def __init__(self, interval, function, *args, **kwargs):
+    self._timer = None
+    self.interval = interval
+    self.function = function
+    self.args = args
+    self.kwargs = kwargs
+    self.is_running = False
+    self.next_call = time.time()
+    self.start()
+
+  def _run(self):
+    self.is_running = False
+    self.start()
+    self.function(*self.args, **self.kwargs)
+
+  def start(self):
+    if not self.is_running:
+      self.next_call += self.interval
+      self._timer = threading.Timer(self.next_call - time.time(), self._run)
+      self._timer.start()
+      self.is_running = True
+
+  def stop(self):
+    self._timer.cancel()
+    self.is_running = False
+
+def update_dht()
+    humidity, temperature = Adafruit_DHT.read(Adafruit_DHT.DHT22, 18)
+    if humidity is not None and temperature is not None:
+        str_temp = '{0:0.2f}*C'.format(temperature)
+        str_hum = '{0:0.2f}%'.format(humidity)
+
+dht_updater = RepeatingTimer(2, update_dht)
+
 def cleanup(*args):
     print("\nOLED Termintated. Cleaning up\n")
     disp.fill(0)
     disp.show()
+    dht_updater.stop()
     sys.exit(0)
 
 for sig in (SIGABRT, SIGINT, SIGTERM):
@@ -108,16 +145,11 @@ while True:
         draw.text((x, top + 24), CPU, font=font, fill=255)
         draw.text((x, top + 32), MemUsage, font=font, fill=255)
         draw.text((x, top + 40), Disk, font=font, fill=255)
-        humidity, temperature = Adafruit_DHT.read(Adafruit_DHT.DHT22, 18)
-        if humidity is not None and temperature is not None:
-            str_temp = '{0:0.2f}*C'.format(temperature)
-            str_hum = '{0:0.2f}%'.format(humidity)
         draw.text((x, top + 48), "Atmo: " + str_temp + "  " + str_hum, font=font, fill=255)
 
         # Display image.
         disp.image(image)
         disp.show()
-        time.sleep(2)
 
 
     except RuntimeError as error:
