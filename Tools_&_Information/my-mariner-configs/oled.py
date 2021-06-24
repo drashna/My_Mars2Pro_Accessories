@@ -112,6 +112,7 @@ def cleanup(*args):
     sys.exit(0)
 
 for sig in (SIGABRT, SIGINT, SIGTERM):
+    dht_updater.stop()
     signal(sig, cleanup)
 
 
@@ -158,3 +159,5 @@ while True:
         disp.fill(0)
         disp.show()
         raise error
+    finally:
+        dht_updater.stop()
