@@ -102,17 +102,17 @@ def update_dht():
         str_temp = '{0:0.2f}*C'.format(temperature)
         str_hum = '{0:0.2f}%'.format(humidity)
 
-rt = RepeatedTimer(2, update_dht)
+dht_updater = RepeatedTimer(2, update_dht)
 
 def cleanup(*args):
     print("\nOLED Termintated. Cleaning up\n")
     disp.fill(0)
     disp.show()
-    rt.stop()
+    dht_updater.stop()
     sys.exit(0)
 
 for sig in (SIGABRT, SIGINT, SIGTERM):
-    rt.stop()
+    dht_updater.stop()
     signal(sig, cleanup)
 
 
@@ -160,4 +160,4 @@ while True:
         disp.show()
         raise error
     finally:
-        rt.stop()
+        dht_updater.stop()
