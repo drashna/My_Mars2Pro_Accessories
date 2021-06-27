@@ -73,41 +73,42 @@ def sys_uptime():
     return "Uptime: %s" % (str(uptime).split('.')[0])
 
 def cpu_usage():
+    cpu_count = os.cpu_count()
     cpu_1m, cpu_5m, cpu_15m = os.getloadavg()
-    return "CPU Load: %.2f" % (cpu_5m)
+    return "CPU Load: %.2f%%" % (cpu_5m / cpu_count)
 
 def cpu_temp():
     cmd = "vcgencmd measure_temp | cut -f 2 -d '=' | awk '{printf \"CPU Temp: %s\", $0}'"
     return subprocess.check_output(cmd, shell=True).decode("utf-8")
 
 def mem_usage():
-    cmd = "free -m | awk 'NR==2{printf \"Mem: %s/%s MB %.2f%%\", $3,$2,$3*100/$2 }'"
+    cmd = "free -m | awk 'NR==2{printf \"Mem: %s/%s MB %.1f%%\", $3,$2,$3*100/$2 }'"
     return subprocess.check_output(cmd, shell=True).decode("utf-8")
 
 def disk_usage(dir):
-    cmd = 'df -h | awk \'$NF=="' + dir + '"{printf "Disk: %s/%s %s", $3,$2,$5}\''
+    cmd = 'df -h | awk \'$NF=="' + dir + '"{printf "Disk: %s/%s %3s", $3,$2,$5}\''
     return subprocess.check_output(cmd, shell=True).decode("utf-8")
     # this doesn't reqire a subprocess, but it isn't as accuate
-    # usage = shutil.disk_usage(dir)
-    # return "Disk: %s/%s" % (bytes2human(usage.used), bytes2human(usage.total))
+    #usage = psutil.disk_usage(dir)
+    #return "Disk: %s/%s" % (bytes2human(usage.used), bytes2human(usage.total))
 
 def network(iface):
     stat = psutil.net_io_counters(pernic=True)[iface]
-    return "%s: Tx: %s, Rx: %s" % (iface, bytes2human(stat.bytes_sent), bytes2human(stat.bytes_recv))
+    return " Tx: %s, Rx: %s" % (bytes2human(stat.bytes_sent), bytes2human(stat.bytes_recv))
 
-def get_ip_address():
-    return subprocess.check_output("hostname -I | cut -d' ' -f1", shell=True).decode("utf-8")
+def get_ip_address(iface):
+    return "IP: " + str(psutil.net_if_addrs()[iface][0][1])
 
-str_temp = '--.--*C'
-str_hum = '--.--%'
+str_temp = '--.-*C'
+str_hum = '--.-%'
 
 def update_dht():
     humidity, temperature = Adafruit_DHT.read(Adafruit_DHT.DHT22, 18)
     if humidity is not None and temperature is not None:
         global str_temp
-        str_temp = '{0:0.2f}*C'.format(temperature)
+        str_temp = '{0:0.1f}*C'.format(temperature)
         global str_hum
-        str_hum = '{0:0.2f}%'.format(humidity)
+        str_hum = '{0:0.1f}%'.format(humidity)
 #    print('DHT Sensor Task ran. ', str_temp, ' ', str_hum)
 
 dht_updater = RepeatedTimer(2, update_dht)
@@ -130,37 +131,43 @@ def stats(device):
     # use custom font
     # font_path = str(Path(__file__).resolve().parent.joinpath('fonts', 'C&C Red Alert [INET].ttf'))
     # font2 = ImageFont.truetype(font_path, 12)
+    iface = 'wlan0'
+    pi_storage = '/mnt/usb_share'
 
     with canvas(device) as draw:
         draw.text((0, 0), get_date(), font=font, fill="white")
         draw.text((80, 0), get_time(), font=font, fill="white")
+        if not psutil.net_if_stats()[iface].isup:
+            draw.text((0, 8),  "  Network Connection ", font=font, fill="white")
+            draw.text((0, 16), "Currently Unavailable", font=font, fill="white")
+        else:
+            draw.text((0, 8),  get_ip_address(iface), font=font, fill="white")
+            draw.text((0, 16), network(iface), font=font, fill="white")
 
-        try:
-            draw.text((0, 16), network('wlan0'), font=font, fill="white")
-            draw.text((0, 8), "IP: " + get_ip_address(), font=font, fill="white")
-        except KeyError:
-            draw.text((0, 8), "Network Unavailable", font=font, fill="white")
-            draw.text((0, 16), "Check back later", font=font, fill="white")
-            pass
-        try:
-            draw.text((0, 24), disk_usage('/mnt/usb_share'), font=font, fill="white")
-        except KeyError:
-            draw.text((0, 24), "USB Storage not accessible", font=font, fill="white")
-            pass
+        if os.path.exists(pi_storage):
+            draw.text((0, 24), disk_usage(pi_storage), font=font, fill="white")
+        else:
+            draw.text((0, 24), " Storage Unavailable ", font=font, fill="white")
 
-        if device.height > 32:
+        if device.height >= 32:
             draw.text((0, 32), cpu_temp(), font=font, fill="white")
             draw.text((0, 40), cpu_usage(), font=font, fill="white")
             draw.text((0, 48), mem_usage(), font=font, fill="white")
             draw.text((0, 56), get_atmo(), font=font, fill="white")
 
-        if device.height > 64:
-            draw.text((0, 64), "More lines available", font=font, fill="white")
+        if device.height >= 64:
+            draw.text((0, 64), "More lines available ", font=font, fill="white")
 
 def main():
     while True:
-        stats(device)
-        time.sleep(0.1)
+        try:
+            stats(device)
+#            time.sleep(0.1)
+        except RuntimeError as error:
+             continue
+        except Exception as error:
+            cleanup()
+            raise error
 
 
 if __name__ == "__main__":
